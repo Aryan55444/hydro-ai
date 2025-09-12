@@ -7,7 +7,7 @@ import joblib
 import numpy as np
 from datetime import datetime
 from app.utils.helpers import get_data_summary
-from app.utils.ml_models import WaterQualityPredictor
+from app.utils.ml_models import preprocess_data, train_model, predict, save_model, load_model
 
 load_dotenv()
 
@@ -105,10 +105,15 @@ with tab2:
         
         if st.button("Train Model"):
             with st.spinner("Training model... This may take a few minutes."):
-                model = WaterQualityPredictor()
-                X, y = model.preprocess_data(df, target_column)
-                metrics = model.train_model(X, y)
-                st.session_state.ml_model = model
+                X, y, label_encoders, feature_columns = preprocess_data(df, target_column)
+                model, scaler, metrics = train_model(X, y, label_encoders)
+                st.session_state.ml_model = {
+                    'model': model,
+                    'scaler': scaler,
+                    'label_encoders': label_encoders,
+                    'feature_columns': feature_columns,
+                    'target_column': target_column
+                }
                 st.session_state.model_trained = True
                 st.success("Model trained successfully!")
                 st.metric("R² Score", f"{metrics['r2']:.3f}")
@@ -116,8 +121,8 @@ with tab2:
                 
                 st.subheader("Feature Importance")
                 feature_importance = pd.DataFrame({
-                    'Feature': list(metrics['features_importance'].keys()),
-                    'Importance': list(metrics['features_importance'].values())
+                    'Feature': list(metrics['feature_importances'].keys()),
+                    'Importance': list(metrics['feature_importances'].values())
                 }).sort_values('Importance', ascending=False)
                 st.bar_chart(feature_importance.set_index('Feature'))
     
@@ -129,7 +134,7 @@ with tab2:
         input_data = {}
         col1, col2 = st.columns(2)
         
-        features = st.session_state.ml_model.feature_columns
+        features = st.session_state.ml_model['feature_columns']
         for i, feature in enumerate(features):
             col = col1 if i % 2 == 0 else col2
             with col:
@@ -148,16 +153,22 @@ with tab2:
                     )
         
         if st.button("Predict"):
-            prediction = st.session_state.ml_model.predict(input_data)
-            st.success(f"Predicted {st.session_state.ml_model.target_column}: **{prediction:.4f}**")
+            prediction = predict(
+                input_data,
+                st.session_state.ml_model['model'],
+                st.session_state.ml_model['scaler'],
+                st.session_state.ml_model['label_encoders'],
+                st.session_state.ml_model['feature_columns']
+            )
+            st.success(f"Predicted {st.session_state.ml_model['target_column']}: **{prediction:.4f}**")
             st.subheader("Prediction Context")
             
-            target_values = df[st.session_state.ml_model.target_column].dropna()
+            target_values = df[st.session_state.ml_model['target_column']].dropna()
             percentile = (target_values < prediction).mean() * 100
             
             st.write(f"### Prediction Details")
             st.write(f"- **Predicted Value**: {prediction:.4f}")
-            st.write(f"- **Dataset Statistics for {st.session_state.ml_model.target_column}:**")
+            st.write(f"- **Dataset Statistics for {st.session_state.ml_model['target_column']}:**")
             st.write(f"  - Minimum: {target_values.min():.4f}")
             st.write(f"  - 25th Percentile: {target_values.quantile(0.25):.4f}")
             st.write(f"  - Median: {target_values.median():.4f}")
