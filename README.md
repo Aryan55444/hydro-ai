@@ -191,12 +191,29 @@ hydro-ai/
 - [ ] Implement automated hyperparameter tuning
 - [ ] Add data drift detection
 - [ ] Create user authentication system
+- [ ] Implement automated report generation with PDF export
 
 ### Long-term
 - [ ] Real-time data streaming integration
 - [ ] Mobile application development
 - [ ] Advanced visualization dashboard
 - [ ] API for third-party integrations
+
+## Workflow
+
+```mermaid
+graph TD
+    A[Data Collection] --> B[Data Preprocessing]
+    B --> C[Exploratory Data Analysis]
+    C --> D[Feature Engineering]
+    D --> E[Model Training]
+    E --> F[Model Evaluation]
+    F --> G[Prediction]
+    G --> H[Visualization]
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style H fill:#bbf,stroke:#333,stroke-width:2px
+```
 
 ## Contributing
 
