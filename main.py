@@ -8,18 +8,20 @@ import numpy as np
 import tempfile
 from datetime import datetime
 from app.utils.helpers import get_data_summary
-from app.utils.ml_models import preprocess_data, load_model, train_model, predict, save_model
+from app.utils.ml_models import preprocess_data, train_model, predict, save_model, load_model
 from app.utils.report_generator import generate_prediction_report
 from app.utils.ui_components import (
     apply_theme, create_header, create_sidebar_header, 
     metric_card, loading_spinner, info_card
 )
 
+# Configure the API key
+load_dotenv()
+api_key = os.getenv("GOOGLE_API_KEY") or "AIzaSyDuSJ45-gcJxvcmNREoAMt1y4GBw0KQ_Hc"
+genai.configure(api_key=api_key)
+
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
-
-load_dotenv()
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 df = pd.read_csv("data/gujarat_groundwater_merged_final.csv")
 
