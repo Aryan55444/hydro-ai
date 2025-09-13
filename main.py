@@ -9,14 +9,14 @@ from datetime import datetime
 from app.utils.helpers import get_data_summary
 from app.utils.ml_models import preprocess_data, train_model, predict, save_model, load_model
 
-load_dotenv()
-
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+# Directly configure the API key for testing
+api_key = "AIzaSyDuSJ45-gcJxvcmNREoAMt1y4GBw0KQ_Hc"
+genai.configure(api_key=api_key)
 
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 
-df = pd.read_csv(f"F:\\study\\hydro ai\\data\\gujarat_groundwater_merged_final.csv")
+df = pd.read_csv("data/gujarat_groundwater_merged_final.csv")
 
 st.set_page_config(page_title="Water Quality Expert")
 st.title("Groundwater Quality Analysis Platform")
