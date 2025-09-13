@@ -21,7 +21,7 @@ if 'chat_history' not in st.session_state:
 load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-df = pd.read_csv(f"F:\\study\\hydro ai\\data\\gujarat_groundwater_merged_final.csv")
+df = pd.read_csv("data/gujarat_groundwater_merged_final.csv")
 
 apply_theme()
 create_header()
@@ -129,11 +129,122 @@ with tab2:
     
     with st.sidebar:
         st.markdown("###  Target Variable")
+        
+        # Get numeric columns with their data types and basic stats
+        numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
+        col_info = []
+        
+        # Cache column statistics for better performance
+        @st.cache_data(ttl=3600)
+        def get_column_stats():
+            stats = []
+            for col in numeric_cols:
+                col_stats = df[col].describe()
+                stats.append({
+                    'name': col,
+                    'dtype': str(df[col].dtype),
+                    'min': col_stats['min'],
+                    'max': col_stats['max'],
+                    'mean': col_stats['mean']
+                })
+            return stats
+            
+        col_info = get_column_stats()
+        
+        # Add custom CSS for better dropdown styling
+        st.markdown("""
+        <style>
+            /* Base select box styling */
+            div[data-baseweb="select"] > div {
+                background-color: #1a2638 !important;
+                border-color: #2d3748 !important;
+                border-radius: 8px !important;
+                color: #f8fafc !important;
+                padding: 8px 12px !important;
+                min-height: 42px !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+            
+            /* Dropdown menu container */
+            div[data-baseweb="popover"] {
+                margin-top: 4px !important;
+            }
+            
+            /* Dropdown menu items */
+            div[data-baseweb="select"] div[role="listbox"] {
+                background-color: #1a2638 !important;
+                border: 1px solid #2d3748 !important;
+                border-radius: 8px !important;
+                padding: 4px 0 !important;
+            }
+            
+            /* Individual dropdown items */
+            div[data-baseweb="select"] div[role="listbox"] div {
+                padding: 10px 16px !important;
+                margin: 0 4px !important;
+                border-radius: 4px !important;
+                border: none !important;
+                min-height: 40px !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+            
+            /* Hover effect for dropdown items */
+            div[data-baseweb="select"] div[role="listbox"] div:hover {
+                background-color: #2d3748 !important;
+            }
+            
+            /* Selected item style */
+            div[data-baseweb="select"] div[role="listbox"] div[aria-selected="true"] {
+                background-color: #1e40af !important;
+                color: white !important;
+            }
+            
+            /* Align dropdown text with input text */
+            div[data-baseweb="select"] > div > div > div {
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        def format_column_name(x):
+            min_val = df[x].min()
+            max_val = df[x].max()
+            # Use whole numbers for rainfall, 2 decimal places for others
+            if 'Rainfall' in x:
+                return f"{x} (Range: {min_val:.0f} - {max_val:.0f} mm)"
+            return f"{x} (Range: {min_val:.2f} - {max_val:.2f})"
+            
         target_column = st.selectbox(
             "Select target variable to predict:",
-            [col for col in df.select_dtypes(include=['float64', 'int64']).columns],
-            help="Choose the water quality parameter you want to predict."
+            options=[col['name'] for col in col_info],
+            format_func=format_column_name,
+            help="Choose the water quality parameter you want to predict. The range shows min and max values in the dataset.",
+            key="target_var_select"
         )
+        
+        # Show additional info about the selected column
+        if target_column:
+            selected_col = next((col for col in col_info if col['name'] == target_column), None)
+            if selected_col:
+                st.markdown("""
+                <div style="background-color: #1a2638; padding: 12px; border-radius: 8px; margin: 8px 0;">
+                    <p style="margin: 0 0 8px 0; font-weight: 500;">Selected Parameter:</p>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li>Type: {dtype}</li>
+                        <li>Min: {min:.4f}</li>
+                        <li>Max: {max:.4f}</li>
+                        <li>Mean: {mean:.4f}</li>
+                    </ul>
+                </div>
+                """.format(
+                    dtype=selected_col['dtype'],
+                    min=selected_col['min'],
+                    max=selected_col['max'],
+                    mean=selected_col['mean']
+                ), unsafe_allow_html=True)
         
         st.markdown("---")
         st.markdown("###  Model Settings")
@@ -195,21 +306,60 @@ with tab2:
         st.markdown("### Make a Prediction")
         with st.form("prediction_form"):
             input_data = {}
-            for feature in st.session_state.ml_model['feature_columns']:
-                if feature in df.select_dtypes(include=['float64', 'int64']).columns:
-                    input_data[feature] = st.number_input(
-                        f"{feature}:",
-                        min_value=float(df[feature].min()),
-                        max_value=float(df[feature].max()),
-                        value=float(df[feature].median())
-                    )
-                else:
-                    input_data[feature] = st.selectbox(
-                        f"{feature}:",
-                        options=df[feature].unique()
-                    )
             
-            submit_button = st.form_submit_button("Make Prediction")
+            # Create two columns for better layout
+            col1, col2 = st.columns(2)
+            
+            # Calculate how many features to put in each column
+            features = st.session_state.ml_model['feature_columns']
+            split_idx = (len(features) + 1) // 2  # Split features roughly in half
+            
+            # First column of inputs
+            with col1:
+                for feature in features[:split_idx]:
+                    if feature in df.select_dtypes(include=['float64', 'int64']).columns:
+                        input_data[feature] = st.number_input(
+                            f"{feature}:",
+                            min_value=float(df[feature].min()),
+                            max_value=float(df[feature].max()),
+                            value=float(df[feature].median()),
+                            step=0.01 if df[feature].dtype == 'float64' else 1.0,
+                            key=f"input_{feature}",
+                            help=f"Range: {df[feature].min():.2f} to {df[feature].max():.2f}"
+                        )
+                    else:
+                        input_data[feature] = st.selectbox(
+                            f"{feature}:",
+                            options=df[feature].unique(),
+                            key=f"select_{feature}",
+                            help=f"Select a value for {feature}"
+                        )
+            
+            # Second column of inputs
+            with col2:
+                for feature in features[split_idx:]:
+                    if feature in df.select_dtypes(include=['float64', 'int64']).columns:
+                        input_data[feature] = st.number_input(
+                            f"{feature}:",
+                            min_value=float(df[feature].min()),
+                            max_value=float(df[feature].max()),
+                            value=float(df[feature].median()),
+                            step=0.01 if df[feature].dtype == 'float64' else 1.0,
+                            key=f"input_{feature}",
+                            help=f"Range: {df[feature].min():.2f} to {df[feature].max():.2f}"
+                        )
+                    else:
+                        input_data[feature] = st.selectbox(
+                            f"{feature}:",
+                            options=df[feature].unique(),
+                            key=f"select_{feature}",
+                            help=f"Select a value for {feature}"
+                        )
+            
+            # Centered submit button with custom styling
+            st.markdown("<div style='text-align: center; margin: 20px 0;'>", unsafe_allow_html=True)
+            submit_button = st.form_submit_button("Make Prediction", type="primary", use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
             
             if submit_button:
                 # Make prediction
@@ -217,14 +367,15 @@ with tab2:
                     input_data,
                     st.session_state.ml_model['model'],
                     st.session_state.ml_model['scaler'],
-                    st.session_state.ml_model['label_encoders']
+                    st.session_state.ml_model['label_encoders'],
+                    st.session_state.ml_model['feature_columns']
                 )
                 
                 target_values = df[st.session_state.ml_model['target_column']].dropna()
                 percentile = (target_values < prediction).mean() * 100
                 
                 st.write(f"### Prediction Details")
-                st.write(f"- **Predicted Value**: {prediction[0]:.4f}")
+                st.write(f"- **Predicted Value**: {prediction:.4f}")
                 st.write(f"- **Dataset Statistics for {st.session_state.ml_model['target_column']}:**")
                 st.write(f"  - Minimum: {target_values.min():.4f}")
                 st.write(f"  - 25th Percentile: {target_values.quantile(0.25):.4f}")
@@ -244,7 +395,7 @@ with tab2:
                 You are a water quality expert. Analyze the following prediction results and provide a professional assessment:
                 
                 Parameter: {st.session_state.ml_model['target_column']}
-                Predicted Value: {prediction[0]:.4f}
+                Predicted Value: {prediction:.4f}
                 
                 Dataset Statistics:
                 - Minimum: {target_values.min():.4f}
@@ -261,17 +412,17 @@ with tab2:
                     analysis_prompt += f"- {feature}: {value}\n"
                     
                 analysis_prompt += "\nProvide a detailed analysis of this prediction, including potential implications and recommendations."
-            
-            with st.spinner("Generating professional analysis..."):
-                model = genai.GenerativeModel("gemini-1.5-flash")
-                analysis_response = model.generate_content(analysis_prompt)
-                analysis_text = analysis_response.text
                 
-                st.subheader("Professional Analysis")
-                st.write(analysis_text)
-                
-                with st.spinner("Generating PDF report..."):
-                    prediction_data = {
+                with st.spinner("Generating professional analysis..."):
+                    model = genai.GenerativeModel("gemini-1.5-flash")
+                    analysis_response = model.generate_content(analysis_prompt)
+                    analysis_text = analysis_response.text
+                    
+                    st.subheader("Professional Analysis")
+                    st.write(analysis_text)
+                    
+                    with st.spinner("Generating PDF report..."):
+                        prediction_data = {
                         'target_column': st.session_state.ml_model['target_column'],
                         'prediction': prediction,
                         'stats': {
