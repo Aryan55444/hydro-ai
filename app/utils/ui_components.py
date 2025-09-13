@@ -246,6 +246,45 @@ def create_header():
 def create_sidebar_header():
     """Creates the sidebar header with material design elements."""
     st.sidebar.markdown("""
+    <style>
+        /* Style for number inputs */
+        .stNumberInput input {
+            background-color: #1a2638 !important;
+            color: #f8fafc !important;
+            border: 1px solid #2d3748 !important;
+            border-radius: 8px !important;
+            padding: 8px 12px !important;
+        }
+        
+        /* Style for select boxes */
+        .stSelectbox div[data-baseweb="select"] {
+            background-color: #1a2638 !important;
+            border-color: #2d3748 !important;
+            border-radius: 8px !important;
+        }
+        
+        /* Style for select box text */
+        .stSelectbox div[data-baseweb="select"] div {
+            color: #f8fafc !important;
+        }
+        
+        /* Style for form submit button */
+        .stButton>button {
+            width: 100%;
+            border-radius: 8px;
+            background-color: #4a90e2;
+            color: white;
+            font-weight: 500;
+            border: none;
+            padding: 0.5rem 1rem;
+            margin-top: 1rem;
+        }
+        
+        .stButton>button:hover {
+            background-color: #3a7bc8;
+        }
+    </style>
+    
     <div style="text-align: left; padding: 1.25rem 1.25rem 0.75rem 1.25rem; border-bottom: 1px solid var(--border);">
         <div style="display: flex; align-items: center; gap: 0.75rem;">
             <span class="material-icons" style="color: var(--accent);">tune</span>
