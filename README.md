@@ -230,7 +230,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 - Built with ❤️ using Streamlit
 - Special thanks to the open-source community
-- Data provided by [Your Data Source]
 
 ## Contact
 
